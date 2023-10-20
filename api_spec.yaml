@@ -1,0 +1,219 @@
+---
+openapi: 3.0.0
+info:
+  title: aktlabs-api
+  version: 1.0.0
+paths:
+  /api/info:
+    get:
+      summary: Get Info
+      # consumes:
+      #   - "application/json"
+      # produces:
+      #   - "application/json"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/Get'
+      security:
+        - cognitoUserPoolAuthorizer : []
+      x-amazon-apigateway-integration:
+        requestTemplates:
+          application/json: "{ \"method\": \"$context.httpMethod\", \"body\" : $input.json('$'), \"headers\": { #foreach($param in $input.params().header.keySet()) \"$param\": \"$util.escapeJavaScript($input.params().header.get($param))\" #if($foreach.hasNext),#end #end } }"
+        responses:
+          default:
+            statusCode: 200
+        passthroughBehavior: "when_no_templates"
+        uri: "${aktlabs_api_lambda_invoke_arn}"
+        httpMethod: POST
+        type: aws
+      x-amazon-apigateway-api-key-source: "HEADER"
+  /api/health:
+    get:
+      summary: get health
+      responses:
+        '200':
+          description: 200 response
+          headers:
+            Content-Type:
+              schema:
+                type: object
+          content: {}
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: '200'
+            responseTemplates: 
+              text/html: "OK"
+              application/json: "{\"status\": \"UP\"}"
+            # responseParameters:
+            #   method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+            #   method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+            #   method.response.header.Access-Control-Allow-Origin: "'*'"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /cb:
+    get:
+      responses:
+        '200':
+          description: 200 response
+          headers:
+            Content-Type:
+              schema:
+                type: string
+          content: {}
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: '200'
+            responseParameters:
+              method.response.header.Content-Type: "'text/html'"
+            responseTemplates:
+              text/html: |-
+                <html>
+                    <head>
+                        <style>
+                            *,
+                            *:before,
+                            *:after {
+                            box-sizing: border-box;
+                            }
+
+                            pre[class*="language-"] {
+                            position: relative;
+                            overflow: auto;
+
+                            /* make space  */
+                            margin: 5px 0;
+                            padding: 1.75rem 0 1.75rem 1rem;
+                            border-radius: 10px;
+                            width: 70%;
+
+                            border: 1px solid black;
+                            font-size: 2em;
+                            font-family: monospace;
+                            background-color: black;
+                            color: white;
+                            }
+
+                            pre[class*="language-"] button {
+                            position: absolute;
+                            top: 5px;
+                            right: 5px;
+
+                            font-size: 0.9rem;
+                            padding: 0.15rem;
+                            background-color: #828282;
+
+                            border: ridge 1px #7b7b7c;
+                            border-radius: 5px;
+                            text-shadow: #c4c4c4 0 0 2px;
+                            }
+
+                            pre[class*="language-"] button:hover {
+                            cursor: pointer;
+                            background-color: #bcbabb;
+                            }
+
+                        </style>
+                        <script>
+                            const copyButtonLabel = "Copy Code";
+
+                            // use a class selector if available
+                            let blocks = document.querySelectorAll("pre");
+
+                            blocks.forEach((block) => {
+                            // only add button if browser supports Clipboard API
+                            if (navigator.clipboard) {
+                                let button = document.createElement("button");
+
+                                button.innerText = copyButtonLabel;
+                                block.appendChild(button);
+
+                                button.addEventListener("click", async () => {
+                                await copyCode(block, button);
+                                });
+                            }
+                            });
+
+                            async function copyCode(block, button) {
+                                let code = block.querySelector("code");
+                                let text = code.innerText;
+
+                                await navigator.clipboard.writeText(text);
+
+                                // visual feedback that task is completed
+                                button.innerText = "Code Copied";
+
+                                setTimeout(() => {
+                                    button.innerText = copyButtonLabel;
+                                }, 700);
+                            }
+                        </script>
+                    </head>
+                    <body>
+                        <pre class="language-text"><header><button onclick="copyCode(document,this)">Copy Code</button></header><code id="cblock"></code></pre>
+                    </body>
+                    <script>
+                        function getParams() {
+                            var idx = document.URL.indexOf('?');
+                            var params = new Array();
+                            if (idx != -1) {
+                                var pairs = document.URL.substring(idx + 1, document.URL.length).split('&');
+                                for (var i = 0; i < pairs.length; i++) {
+                                    nameVal = pairs[i].split('=');
+                                    params[nameVal[0]] = nameVal[1];
+                                }
+                            }
+                            return params;
+                        }
+
+                        params = getParams();
+
+                        for( var i in params ){
+                          if(i == "code"){
+                            document.getElementById("cblock").innerText+=unescape(params[i]);
+                          }
+                        }
+                      </script>
+                </html>
+        requestTemplates:
+          application/json: '{ "statusCode": 200 }'
+        passthroughBehavior: when_no_match
+components:
+  schemas:
+    Get:
+      type: object
+      required:
+        - msg
+        - region
+      properties:
+        msg:
+          type: string
+        region:
+          type: string
+  securitySchemes:
+    cognitoUserPoolAuthorizer:
+      type: "apiKey"
+      name: "Authorization"
+      in: "header"
+      x-amazon-apigateway-authtype: "cognito_user_pools"
+      x-amazon-apigateway-authorizer:
+        providerARNs:
+        - "${cognito_user_pool_arn}"
+        type: "cognito_user_pools"
+    # jwt-authorizer-autofind: 
+    #   type: "openIdConnect"
+    #   openIdConnectUrl: "https://cognito-idp.region.amazonaws.com/userPoolId/.well-known/openid-configuration"
+    #   x-amazon-apigateway-authorizer: 
+    #     type: "jwt"
+    #     jwtConfiguration:
+    #       audience:
+    #         - "${audience}"
+    #     identitySource: "$request.header.Authorization"
