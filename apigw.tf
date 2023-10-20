@@ -89,7 +89,7 @@ data "aws_iam_policy_document" "assume_role" {
 }
 
 resource "aws_iam_role" "aktlabs-api-cloudwatch" {
-  name               = "api_gateway_cloudwatch_global"
+  name               = "api_gateway_cloudwatch_global_${var.aws_region}"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }
 
